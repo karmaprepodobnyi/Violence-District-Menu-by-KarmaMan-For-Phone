@@ -1,0 +1,640 @@
+-- Адаптированная версия для мобильных устройств
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local Teams = game:GetService("Teams")
+local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
+local LocalPlayer = Players.LocalPlayer
+
+-- Проверка на мобильное устройство
+local IS_MOBILE = UserInputService.TouchEnabled
+
+local _F = {}
+
+-- Основные настройки для мобильных устройств
+_F.MOBILE_SETTINGS = {
+    BUTTON_HEIGHT = 45,
+    SLIDER_HEIGHT = 70,
+    FONT_SIZE = 14,
+    MENU_WIDTH = 400,
+    MENU_HEIGHT = 600
+}
+
+_F._cache = {}
+_F._connections = {}
+_F._espCache = {}
+_F._lastUpdate = 0
+_F._updateInterval = 0.1
+
+-- Создание основного GUI с адаптацией для мобильных устройств
+_F.ScreenGui = Instance.new("ScreenGui")
+_F.ScreenGui.Name = "ViolenceDistrictMobileMenu"
+_F.ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+_F.ScreenGui.ResetOnSpawn = false
+
+pcall(function()
+    _F.ScreenGui.Parent = CoreGui
+end)
+
+-- Основной фрейм меню с мобильными размерами
+_F.MainFrame = Instance.new("Frame")
+_F.MainFrame.Name = "MainFrame"
+_F.MainFrame.Size = UDim2.new(0, _F.MOBILE_SETTINGS.MENU_WIDTH, 0, _F.MOBILE_SETTINGS.MENU_HEIGHT)
+_F.MainFrame.Position = UDim2.new(0.5, -_F.MOBILE_SETTINGS.MENU_WIDTH/2, 0.5, -_F.MOBILE_SETTINGS.MENU_HEIGHT/2)
+_F.MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+_F.MainFrame.BorderSizePixel = 0
+_F.MainFrame.ClipsDescendants = true
+_F.MainFrame.Parent = _F.ScreenGui
+
+-- Упрощенная система перетаскивания для мобильных устройств
+_F.dragging = false
+_F.dragInput = nil
+_F.dragStart = nil
+_F.startPos = nil
+
+-- Функция для обработки тач-ввода
+local function handleTouchInput(input, processed)
+    if processed then return end
+    
+    if input.UserInputType == Enum.UserInputType.Touch then
+        if input.UserInputState == Enum.UserInputState.Begin then
+            -- Проверяем, касаемся ли мы заголовка для перетаскивания
+            local touchPos = input.Position
+            local titleFrame = _F.MainFrame:FindFirstChild("TitleFrame")
+            if titleFrame then
+                local titleAbsPos = titleFrame.AbsolutePosition
+                local titleSize = titleFrame.AbsoluteSize
+                
+                if touchPos.X >= titleAbsPos.X and touchPos.X <= titleAbsPos.X + titleSize.X and
+                   touchPos.Y >= titleAbsPos.Y and touchPos.Y <= titleAbsPos.Y + titleSize.Y then
+                    _F.dragging = true
+                    _F.dragStart = input.Position
+                    _F.startPos = _F.MainFrame.Position
+                end
+            end
+        elseif input.UserInputState == Enum.UserInputState.Change then
+            if _F.dragging then
+                local delta = input.Position - _F.dragStart
+                _F.MainFrame.Position = UDim2.new(
+                    _F.startPos.X.Scale, 
+                    _F.startPos.X.Offset + delta.X,
+                    _F.startPos.Y.Scale, 
+                    _F.startPos.Y.Offset + delta.Y
+                )
+            end
+        else
+            _F.dragging = false
+        end
+    end
+end
+
+UserInputService.InputBegan:Connect(handleTouchInput)
+UserInputService.InputChanged:Connect(handleTouchInput)
+UserInputService.InputEnded:Connect(handleTouchInput)
+
+-- Скругление углов
+_F.UICorner = Instance.new("UICorner")
+_F.UICorner.CornerRadius = UDim.new(0, 12)
+_F.UICorner.Parent = _F.MainFrame
+
+-- Тень
+_F.UIStroke = Instance.new("UIStroke")
+_F.UIStroke.Color = Color3.fromRGB(60, 60, 70)
+_F.UIStroke.Thickness = 2
+_F.UIStroke.Parent = _F.MainFrame
+
+-- Заголовок с увеличенной высотой для удобства тач-ввода
+_F.TitleFrame = Instance.new("Frame")
+_F.TitleFrame.Name = "TitleFrame"
+_F.TitleFrame.Size = UDim2.new(1, 0, 0, 50)
+_F.TitleFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+_F.TitleFrame.BorderSizePixel = 0
+_F.TitleFrame.Parent = _F.MainFrame
+
+_F.TitleCorner = Instance.new("UICorner")
+_F.TitleCorner.CornerRadius = UDim.new(0, 12)
+_F.TitleCorner.Parent = _F.TitleFrame
+
+_F.TitleLabel = Instance.new("TextLabel")
+_F.TitleLabel.Name = "TitleLabel"
+_F.TitleLabel.Size = UDim2.new(1, 0, 1, 0)
+_F.TitleLabel.BackgroundTransparency = 1
+_F.TitleLabel.Text = "VIOLENCE DISTRICT MOBILE"
+_F.TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+_F.TitleLabel.TextSize = 18
+_F.TitleLabel.Font = Enum.Font.GothamBold
+_F.TitleLabel.Parent = _F.TitleFrame
+
+-- Вкладки меню с увеличенными кнопками
+_F.TabButtonsFrame = Instance.new("Frame")
+_F.TabButtonsFrame.Name = "TabButtonsFrame"
+_F.TabButtonsFrame.Size = UDim2.new(1, -30, 0, 40)
+_F.TabButtonsFrame.Position = UDim2.new(0, 15, 0, 55)
+_F.TabButtonsFrame.BackgroundTransparency = 1
+_F.TabButtonsFrame.Parent = _F.MainFrame
+
+_F.TabButtonsLayout = Instance.new("UIListLayout")
+_F.TabButtonsLayout.FillDirection = Enum.FillDirection.Horizontal
+_F.TabButtonsLayout.Padding = UDim.new(0, 5)
+_F.TabButtonsLayout.Parent = _F.TabButtonsFrame
+
+-- Контентная область
+_F.ContentFrame = Instance.new("Frame")
+_F.ContentFrame.Name = "ContentFrame"
+_F.ContentFrame.Size = UDim2.new(1, -30, 1, -110)
+_F.ContentFrame.Position = UDim2.new(0, 15, 0, 100)
+_F.ContentFrame.BackgroundTransparency = 1
+_F.ContentFrame.Parent = _F.MainFrame
+
+-- Фреймы для разных разделов
+_F.ESPSettingsFrame = Instance.new("ScrollingFrame")
+_F.ESPSettingsFrame.Name = "ESPSettingsFrame"
+_F.ESPSettingsFrame.Size = UDim2.new(1, 0, 1, 0)
+_F.ESPSettingsFrame.BackgroundTransparency = 1
+_F.ESPSettingsFrame.ScrollBarThickness = 6
+_F.ESPSettingsFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 90)
+_F.ESPSettingsFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+_F.ESPSettingsFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+_F.ESPSettingsFrame.Visible = true
+_F.ESPSettingsFrame.Parent = _F.ContentFrame
+
+_F.GameFeaturesFrame = Instance.new("ScrollingFrame")
+_F.GameFeaturesFrame.Name = "GameFeaturesFrame"
+_F.GameFeaturesFrame.Size = UDim2.new(1, 0, 1, 0)
+_F.GameFeaturesFrame.BackgroundTransparency = 1
+_F.GameFeaturesFrame.ScrollBarThickness = 6
+_F.GameFeaturesFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 90)
+_F.GameFeaturesFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+_F.GameFeaturesFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+_F.GameFeaturesFrame.Visible = false
+_F.GameFeaturesFrame.Parent = _F.ContentFrame
+
+-- Layout для фреймов
+_F.ESPLayout = Instance.new("UIListLayout")
+_F.ESPLayout.Padding = UDim.new(0, 10)
+_F.ESPLayout.Parent = _F.ESPSettingsFrame
+
+_F.FeaturesLayout = Instance.new("UIListLayout")
+_F.FeaturesLayout.Padding = UDim.new(0, 10)
+_F.FeaturesLayout.Parent = _F.GameFeaturesFrame
+
+-- Переменные состояния
+_F.MenuOpen = true
+_F.ESPEnabled = false
+_F.walkSpeedActive = false
+_F.walkSpeed = 16
+_F.FlyEnabled = false
+_F.FlySpeedValue = 50
+_F.NoclipEnabled = false
+
+-- Упрощенная функция создания переключателя для мобильных устройств
+_F.CreateMobileToggle = function(name, defaultValue, callback, parentFrame)
+    local ToggleFrame = Instance.new("Frame")
+    ToggleFrame.Name = name .. "Toggle"
+    ToggleFrame.Size = UDim2.new(1, 0, 0, _F.MOBILE_SETTINGS.BUTTON_HEIGHT)
+    ToggleFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    ToggleFrame.BorderSizePixel = 0
+    ToggleFrame.Parent = parentFrame
+    
+    local ToggleCorner = Instance.new("UICorner")
+    ToggleCorner.CornerRadius = UDim.new(0, 8)
+    ToggleCorner.Parent = ToggleFrame
+    
+    local ToggleLabel = Instance.new("TextLabel")
+    ToggleLabel.Name = "ToggleLabel"
+    ToggleLabel.Size = UDim2.new(0.7, 0, 1, 0)
+    ToggleLabel.Position = UDim2.new(0, 15, 0, 0)
+    ToggleLabel.BackgroundTransparency = 1
+    ToggleLabel.Text = name
+    ToggleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleLabel.TextSize = _F.MOBILE_SETTINGS.FONT_SIZE
+    ToggleLabel.Font = Enum.Font.Gotham
+    ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    ToggleLabel.Parent = ToggleFrame
+    
+    local ToggleButton = Instance.new("TextButton")
+    ToggleButton.Name = "ToggleButton"
+    ToggleButton.Size = UDim2.new(0, 60, 0, 30)
+    ToggleButton.Position = UDim2.new(1, -70, 0.5, -15)
+    ToggleButton.BackgroundColor3 = defaultValue and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(80, 80, 90)
+    ToggleButton.BorderSizePixel = 0
+    ToggleButton.Text = ""
+    ToggleButton.Parent = ToggleFrame
+    
+    local ToggleCorner2 = Instance.new("UICorner")
+    ToggleCorner2.CornerRadius = UDim.new(0, 15)
+    ToggleCorner2.Parent = ToggleButton
+    
+    local ToggleDot = Instance.new("Frame")
+    ToggleDot.Name = "ToggleDot"
+    ToggleDot.Size = UDim2.new(0, 26, 0, 26)
+    ToggleDot.Position = UDim2.new(0, defaultValue and 32 or 2, 0, 2)
+    ToggleDot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleDot.BorderSizePixel = 0
+    ToggleDot.Parent = ToggleButton
+    
+    local ToggleCorner3 = Instance.new("UICorner")
+    ToggleCorner3.CornerRadius = UDim.new(0, 13)
+    ToggleCorner3.Parent = ToggleDot
+    
+    -- Обработчик для мобильных устройств
+    ToggleButton.MouseButton1Click:Connect(function()
+        defaultValue = not defaultValue
+        ToggleButton.BackgroundColor3 = defaultValue and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(80, 80, 90)
+        
+        local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local tween = TweenService:Create(ToggleDot, tweenInfo, {
+            Position = UDim2.new(0, defaultValue and 32 or 2, 0, 2)
+        })
+        tween:Play()
+        
+        callback(defaultValue)
+    end)
+    
+    return ToggleFrame
+end
+
+-- Упрощенный слайдер для мобильных устройств
+_F.CreateMobileSlider = function(name, minValue, maxValue, defaultValue, callback, parentFrame)
+    local SliderFrame = Instance.new("Frame")
+    SliderFrame.Name = name .. "Slider"
+    SliderFrame.Size = UDim2.new(1, 0, 0, _F.MOBILE_SETTINGS.SLIDER_HEIGHT)
+    SliderFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    SliderFrame.BorderSizePixel = 0
+    SliderFrame.Parent = parentFrame
+    
+    local SliderCorner = Instance.new("UICorner")
+    SliderCorner.CornerRadius = UDim.new(0, 8)
+    SliderCorner.Parent = SliderFrame
+    
+    local SliderLabel = Instance.new("TextLabel")
+    SliderLabel.Name = "SliderLabel"
+    SliderLabel.Size = UDim2.new(1, -30, 0, 25)
+    SliderLabel.Position = UDim2.new(0, 15, 0, 5)
+    SliderLabel.BackgroundTransparency = 1
+    SliderLabel.Text = name .. ": " .. defaultValue
+    SliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    SliderLabel.TextSize = _F.MOBILE_SETTINGS.FONT_SIZE
+    SliderLabel.Font = Enum.Font.Gotham
+    SliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+    SliderLabel.Parent = SliderFrame
+    
+    local SliderTrack = Instance.new("Frame")
+    SliderTrack.Name = "SliderTrack"
+    SliderTrack.Size = UDim2.new(1, -30, 0, 8)
+    SliderTrack.Position = UDim2.new(0, 15, 0, 40)
+    SliderTrack.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+    SliderTrack.BorderSizePixel = 0
+    SliderTrack.Parent = SliderFrame
+    
+    local SliderTrackCorner = Instance.new("UICorner")
+    SliderTrackCorner.CornerRadius = UDim.new(0, 4)
+    SliderTrackCorner.Parent = SliderTrack
+    
+    local SliderFill = Instance.new("Frame")
+    SliderFill.Name = "SliderFill"
+    SliderFill.Size = UDim2.new((defaultValue - minValue) / (maxValue - minValue), 0, 1, 0)
+    SliderFill.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    SliderFill.BorderSizePixel = 0
+    SliderFill.Parent = SliderTrack
+    
+    local SliderFillCorner = Instance.new("UICorner")
+    SliderFillCorner.CornerRadius = UDim.new(0, 4)
+    SliderFillCorner.Parent = SliderFill
+    
+    local SliderButton = Instance.new("TextButton")
+    SliderButton.Name = "SliderButton"
+    SliderButton.Size = UDim2.new(0, 24, 0, 24)
+    SliderButton.Position = UDim2.new((defaultValue - minValue) / (maxValue - minValue), -12, 0.5, -12)
+    SliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    SliderButton.BorderSizePixel = 0
+    SliderButton.Text = ""
+    SliderButton.ZIndex = 2
+    SliderButton.Parent = SliderTrack
+    
+    local SliderButtonCorner = Instance.new("UICorner")
+    SliderButtonCorner.CornerRadius = UDim.new(0, 12)
+    SliderButtonCorner.Parent = SliderButton
+    
+    local dragging = false
+    
+    local function updateSlider(input)
+        if not dragging then return end
+        
+        local relativeX = math.clamp((input.Position.X - SliderTrack.AbsolutePosition.X) / SliderTrack.AbsoluteSize.X, 0, 1)
+        local value = math.floor(minValue + (maxValue - minValue) * relativeX)
+        
+        SliderFill.Size = UDim2.new(relativeX, 0, 1, 0)
+        SliderButton.Position = UDim2.new(relativeX, -12, 0.5, -12)
+        SliderLabel.Text = name .. ": " .. value
+        
+        callback(value)
+    end
+    
+    SliderButton.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+        end
+    end)
+    
+    SliderTrack.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            updateSlider(input)
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+            updateSlider(input)
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    return SliderFrame
+end
+
+-- Упрощенная кнопка для мобильных устройств
+_F.CreateMobileButton = function(name, callback, parentFrame)
+    local ButtonFrame = Instance.new("Frame")
+    ButtonFrame.Name = name .. "Button"
+    ButtonFrame.Size = UDim2.new(1, 0, 0, _F.MOBILE_SETTINGS.BUTTON_HEIGHT)
+    ButtonFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    ButtonFrame.BorderSizePixel = 0
+    ButtonFrame.Parent = parentFrame
+    
+    local ButtonCorner = Instance.new("UICorner")
+    ButtonCorner.CornerRadius = UDim.new(0, 8)
+    ButtonCorner.Parent = ButtonFrame
+    
+    local Button = Instance.new("TextButton")
+    Button.Name = "Button"
+    Button.Size = UDim2.new(1, -20, 1, -10)
+    Button.Position = UDim2.new(0, 10, 0, 5)
+    Button.BackgroundColor3 = Color3.fromRGB(0, 100, 255)
+    Button.BorderSizePixel = 0
+    Button.Text = name
+    Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Button.TextSize = _F.MOBILE_SETTINGS.FONT_SIZE
+    Button.Font = Enum.Font.GothamBold
+    Button.Parent = ButtonFrame
+    
+    local ButtonCorner2 = Instance.new("UICorner")
+    ButtonCorner2.CornerRadius = UDim.new(0, 6)
+    ButtonCorner2.Parent = Button
+    
+    Button.MouseButton1Click:Connect(function()
+        callback()
+    end)
+    
+    return Button
+end
+
+-- Функция создания кнопки вкладки для мобильных устройств
+_F.CreateMobileTabButton = function(name, targetFrame)
+    local TabButton = Instance.new("TextButton")
+    TabButton.Name = name .. "Tab"
+    TabButton.Size = UDim2.new(0.5, -5, 1, 0)
+    TabButton.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    TabButton.BorderSizePixel = 0
+    TabButton.Text = name
+    TabButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+    TabButton.TextSize = _F.MOBILE_SETTINGS.FONT_SIZE
+    TabButton.Font = Enum.Font.GothamBold
+    TabButton.Parent = _F.TabButtonsFrame
+    
+    local TabCorner = Instance.new("UICorner")
+    TabCorner.CornerRadius = UDim.new(0, 8)
+    TabCorner.Parent = TabButton
+    
+    TabButton.MouseButton1Click:Connect(function()
+        -- Скрыть все фреймы
+        _F.ESPSettingsFrame.Visible = false
+        _F.GameFeaturesFrame.Visible = false
+        
+        -- Показать целевой фрейм
+        targetFrame.Visible = true
+        
+        -- Обновить цвета кнопок
+        for _, child in ipairs(_F.TabButtonsFrame:GetChildren()) do
+            if child:IsA("TextButton") then
+                child.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+                child.TextColor3 = Color3.fromRGB(200, 200, 200)
+            end
+        end
+        
+        -- Подсветить активную кнопку
+        TabButton.BackgroundColor3 = Color3.fromRGB(0, 100, 255)
+        TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end)
+    
+    return TabButton
+end
+
+-- Создание вкладок
+_F.ESPTab = _F.CreateMobileTabButton("ESP", _F.ESPSettingsFrame)
+_F.FeaturesTab = _F.CreateMobileTabButton("FEATURES", _F.GameFeaturesFrame)
+
+-- Активируем первую вкладку по умолчанию
+_F.ESPTab.BackgroundColor3 = Color3.fromRGB(0, 100, 255)
+_F.ESPTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+-- Упрощенные функции для мобильных устройств
+
+-- ESP функция
+_F.ToggleESP = function(enabled)
+    _F.ESPEnabled = enabled
+    print("ESP: " .. (enabled and "ENABLED" or "DISABLED"))
+end
+
+-- Walk Speed функция
+_F.ToggleWalkSpeed = function(enabled)
+    _F.walkSpeedActive = enabled
+    
+    if enabled then
+        local character = LocalPlayer.Character
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = _F.walkSpeed
+            end
+        end
+        print("WalkSpeed: ENABLED (" .. _F.walkSpeed .. ")")
+    else
+        local character = LocalPlayer.Character
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = 16
+            end
+        end
+        print("WalkSpeed: DISABLED")
+    end
+end
+
+_F.UpdateWalkSpeedValue = function(value)
+    _F.walkSpeed = value
+    if _F.walkSpeedActive then
+        _F.ToggleWalkSpeed(true)
+    end
+    print("WalkSpeed Value: " .. value)
+end
+
+-- Fly функция (упрощенная для мобильных устройств)
+_F.ToggleFly = function(enabled)
+    _F.FlyEnabled = enabled
+    print("Fly: " .. (enabled and "ENABLED" or "DISABLED"))
+end
+
+-- Noclip функция
+_F.ToggleNoclip = function(enabled)
+    _F.NoclipEnabled = enabled
+    print("Noclip: " .. (enabled and "ENABLED" or "DISABLED"))
+end
+
+-- Кнопка закрытия меню
+_F.CreateCloseButton = function()
+    local CloseButton = Instance.new("TextButton")
+    CloseButton.Name = "CloseButton"
+    CloseButton.Size = UDim2.new(0, 40, 0, 40)
+    CloseButton.Position = UDim2.new(1, -45, 0, 5)
+    CloseButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+    CloseButton.BorderSizePixel = 0
+    CloseButton.Text = "X"
+    CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CloseButton.TextSize = 16
+    CloseButton.Font = Enum.Font.GothamBold
+    CloseButton.Parent = _F.TitleFrame
+    
+    local CloseCorner = Instance.new("UICorner")
+    CloseCorner.CornerRadius = UDim.new(0, 8)
+    CloseCorner.Parent = CloseButton
+    
+    CloseButton.MouseButton1Click:Connect(function()
+        _F.ToggleMenu()
+    end)
+end
+
+-- Создание элементов меню
+
+-- ESP SETTINGS
+_F.CreateMobileToggle("ESP Players", false, _F.ToggleESP, _F.ESPSettingsFrame)
+_F.CreateMobileToggle("ESP Generators", false, function(enabled)
+    print("Generator ESP: " .. (enabled and "ENABLED" or "DISABLED"))
+end, _F.ESPSettingsFrame)
+_F.CreateMobileToggle("ESP Pallets", false, function(enabled)
+    print("Pallet ESP: " .. (enabled and "ENABLED" or "DISABLED"))
+end, _F.ESPSettingsFrame)
+
+-- GAME FEATURES
+_F.CreateMobileToggle("Walk Speed", false, _F.ToggleWalkSpeed, _F.GameFeaturesFrame)
+_F.CreateMobileSlider("Walk Speed Value", 16, 100, 16, _F.UpdateWalkSpeedValue, _F.GameFeaturesFrame)
+_F.CreateMobileToggle("Fly", false, _F.ToggleFly, _F.GameFeaturesFrame)
+_F.CreateMobileSlider("Fly Speed", 0, 100, 50, function(value)
+    _F.FlySpeedValue = value
+    print("Fly Speed: " .. value)
+end, _F.GameFeaturesFrame)
+_F.CreateMobileToggle("Noclip", false, _F.ToggleNoclip, _F.GameFeaturesFrame)
+_F.CreateMobileToggle("God Mode", false, function(enabled)
+    print("God Mode: " .. (enabled and "ENABLED" or "DISABLED"))
+end, _F.GameFeaturesFrame)
+
+-- Кнопка закрытия
+_F.CreateCloseButton()
+
+-- Функция переключения меню
+_F.ToggleMenu = function()
+    _F.MenuOpen = not _F.MenuOpen
+    
+    local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    
+    if _F.MenuOpen then
+        local tween = TweenService:Create(_F.MainFrame, tweenInfo, {
+            Position = UDim2.new(0.5, -_F.MOBILE_SETTINGS.MENU_WIDTH/2, 0.5, -_F.MOBILE_SETTINGS.MENU_HEIGHT/2)
+        })
+        tween:Play()
+        print("Menu: OPENED")
+    else
+        local tween = TweenService:Create(_F.MainFrame, tweenInfo, {
+            Position = UDim2.new(0.5, -_F.MOBILE_SETTINGS.MENU_WIDTH/2, 1, 50)
+        })
+        tween:Play()
+        print("Menu: CLOSED")
+    end
+end
+
+-- Обработчик жестов для открытия/закрытия меню
+local lastTapTime = 0
+UserInputService.TouchTap:Connect(function(touchPositions, processed)
+    if processed then return end
+    
+    local currentTime = tick()
+    
+    -- Двойное касание для открытия/закрытия меню
+    if currentTime - lastTapTime < 0.5 then
+        _F.ToggleMenu()
+    end
+    
+    lastTapTime = currentTime
+end)
+
+-- Альтернативное управление для ПК (если нужно)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == Enum.KeyCode.RightShift then
+        _F.ToggleMenu()
+    end
+end)
+
+-- Создание уведомления о управлении
+_F.CreateMobileNotification = function()
+    local Notification = Instance.new("TextLabel")
+    Notification.Name = "MobileHint"
+    Notification.Size = UDim2.new(0, 300, 0, 50)
+    Notification.Position = UDim2.new(0.5, -150, 0.1, 0)
+    Notification.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    Notification.BackgroundTransparency = 0.5
+    Notification.Text = "Double Tap to Open/Close Menu"
+    Notification.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Notification.TextSize = 16
+    Notification.Font = Enum.Font.GothamBold
+    Notification.TextStrokeTransparency = 0
+    Notification.ZIndex = 1000
+    Notification.Parent = _F.ScreenGui
+    
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 8)
+    Corner.Parent = Notification
+    
+    delay(5, function()
+        local tweenOut = TweenService:Create(Notification, TweenInfo.new(0.7, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
+            Position = UDim2.new(0.5, -150, 0, -60)
+        })
+        tweenOut:Play()
+        
+        tweenOut.Completed:Connect(function()
+            Notification:Destroy()
+        end)
+    end)
+end
+
+-- Автоматическое скрытие меню при старте
+_F.MainFrame.Position = UDim2.new(0.5, -_F.MOBILE_SETTINGS.MENU_WIDTH/2, 1, 50)
+
+-- Запуск
+delay(1, _F.CreateMobileNotification)
+
+print("Violence District Mobile Menu loaded!")
+print("Double tap to open/close menu")
+print("Drag the title to move the menu")
+
+return _F
