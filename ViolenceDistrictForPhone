@@ -1,4 +1,4 @@
--- Violence District Mobile Script - FULL VERSION WITH HSV COLOR PICKERS
+-- Violence District Mobile Script - COMPLETE VERSION WITH HSV COLOR PICKERS
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -818,7 +818,7 @@ _F.CreateHSVColorPicker = function(name, defaultColor, callback, parentFrame)
     return ColorFrame
 end
 
--- РАБОЧИЕ ФУНКЦИИ ESP
+-- РАБОЧИЕ ФУНКЦИИ
 
 -- ESP функция
 _F.ToggleESP = function(enabled)
@@ -1013,10 +1013,502 @@ _F.CreatePalletESP = function(pallet)
     _F.PalletESPItems[pallet] = espFolder
 end
 
--- [ОСТАЛЬНЫЕ ФУНКЦИИ ОСТАЮТСЯ ТАКИМИ ЖЕ КАК В ПРЕДЫДУЩЕЙ ВЕРСИИ]
--- Walk Speed, Jump Power, Fly, Noclip, God Mode, Invisible, AntiStun, AntiGrab, 
--- Max Escape Chance, Grab Killer, Rapid Fire, Disable Twist Animations, No Fog, 
--- Time, Map Color, Aimbot, Triggerbot, Silent Aim, Third Person, Rotate Person
+-- Walk Speed
+_F.ToggleWalkSpeed = function(enabled)
+    _F.walkSpeedActive = enabled
+    
+    if enabled then
+        local character = LocalPlayer.Character
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = _F.walkSpeed
+            end
+        end
+        print("WalkSpeed: ENABLED (" .. _F.walkSpeed .. ")")
+    else
+        local character = LocalPlayer.Character
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = 16
+            end
+        end
+        print("WalkSpeed: DISABLED")
+    end
+end
+
+_F.UpdateWalkSpeedValue = function(value)
+    _F.walkSpeed = value
+    if _F.walkSpeedActive then
+        _F.ToggleWalkSpeed(true)
+    end
+    print("WalkSpeed Value: " .. value)
+end
+
+-- Jump Power
+_F.ToggleJumpPower = function(enabled)
+    _F.JumpPowerEnabled = enabled
+    
+    if enabled then
+        local character = LocalPlayer.Character
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.JumpPower = _F.JumpPowerValue
+            end
+        end
+        print("JumpPower: ENABLED (" .. _F.JumpPowerValue .. ")")
+    else
+        local character = LocalPlayer.Character
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.JumpPower = 50
+            end
+        end
+        print("JumpPower: DISABLED")
+    end
+end
+
+_F.UpdateJumpPowerValue = function(value)
+    _F.JumpPowerValue = value
+    if _F.JumpPowerEnabled then
+        _F.ToggleJumpPower(true)
+    end
+    print("JumpPower Value: " .. value)
+end
+
+-- Fly
+_F.ToggleFly = function(enabled)
+    _F.FlyEnabled = enabled
+    
+    if enabled then
+        _F.StartFly()
+        print("Fly: ENABLED")
+    else
+        _F.StopFly()
+        print("Fly: DISABLED")
+    end
+end
+
+_F.StartFly = function()
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    
+    if not humanoidRootPart or not humanoid then return end
+    
+    _F.BodyVelocity = Instance.new("BodyVelocity")
+    _F.BodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    _F.BodyVelocity.MaxForce = Vector3.new(40000, 40000, 40000)
+    _F.BodyVelocity.Parent = humanoidRootPart
+    
+    _F.BodyGyro = Instance.new("BodyGyro")
+    _F.BodyGyro.MaxTorque = Vector3.new(40000, 40000, 40000)
+    _F.BodyGyro.P = 1000
+    _F.BodyGyro.D = 50
+    _F.BodyGyro.Parent = humanoidRootPart
+    
+    _F.FlyConnection = RunService.Heartbeat:Connect(function()
+        if not _F.FlyEnabled or not character then return end
+        
+        _F.BodyGyro.CFrame = Workspace.CurrentCamera.CFrame
+        
+        local velocity = Vector3.new(0, 0, 0)
+        
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            velocity = velocity + (Workspace.CurrentCamera.CFrame.LookVector * _F.FlySpeedValue)
+        end
+        
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            velocity = velocity + (Workspace.CurrentCamera.CFrame.LookVector * -_F.FlySpeedValue)
+        end
+        
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            velocity = velocity + (Workspace.CurrentCamera.CFrame.RightVector * -_F.FlySpeedValue)
+        end
+        
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            velocity = velocity + (Workspace.CurrentCamera.CFrame.RightVector * _F.FlySpeedValue)
+        end
+        
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            velocity = velocity + Vector3.new(0, _F.FlySpeedValue, 0)
+        end
+        
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+            velocity = velocity + Vector3.new(0, -_F.FlySpeedValue, 0)
+        end
+        
+        _F.BodyVelocity.Velocity = velocity
+        humanoid.PlatformStand = true
+    end)
+end
+
+_F.StopFly = function()
+    if _F.FlyConnection then
+        _F.FlyConnection:Disconnect()
+    end
+    
+    local character = LocalPlayer.Character
+    if character then
+        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        
+        if humanoid then
+            humanoid.PlatformStand = false
+        end
+        
+        if humanoidRootPart then
+            if _F.BodyVelocity then
+                _F.BodyVelocity:Destroy()
+            end
+            if _F.BodyGyro then
+                _F.BodyGyro:Destroy()
+            end
+        end
+    end
+end
+
+-- Noclip
+_F.ToggleNoclip = function(enabled)
+    _F.NoclipEnabled = enabled
+    
+    if enabled then
+        _F.StartNoclip()
+        print("Noclip: ENABLED")
+    else
+        _F.StopNoclip()
+        print("Noclip: DISABLED")
+    end
+end
+
+_F.StartNoclip = function()
+    _F.NoclipConnection = RunService.Stepped:Connect(function()
+        if not _F.NoclipEnabled then return end
+        
+        local character = LocalPlayer.Character
+        if character then
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end)
+end
+
+_F.StopNoclip = function()
+    if _F.NoclipConnection then
+        _F.NoclipConnection:Disconnect()
+    end
+    
+    local character = LocalPlayer.Character
+    if character then
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+    end
+end
+
+-- God Mode
+_F.ToggleGodMode = function(enabled)
+    _F.GodModeEnabled = enabled
+    
+    if enabled then
+        local character = LocalPlayer.Character
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.MaxHealth = math.huge
+                humanoid.Health = math.huge
+            end
+        end
+        print("God Mode: ENABLED")
+    else
+        local character = LocalPlayer.Character
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.MaxHealth = 100
+                humanoid.Health = 100
+            end
+        end
+        print("God Mode: DISABLED")
+    end
+end
+
+-- Invisible
+_F.ToggleInvisible = function(enabled)
+    _F.InvisibleEnabled = enabled
+    
+    if enabled then
+        local character = LocalPlayer.Character
+        if character then
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Transparency = 1
+                end
+            end
+        end
+        print("Invisible: ENABLED")
+    else
+        local character = LocalPlayer.Character
+        if character then
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Transparency = 0
+                end
+            end
+        end
+        print("Invisible: DISABLED")
+    end
+end
+
+-- AntiStun
+_F.ToggleAntiStun = function(enabled)
+    _F.AntiStunEnabled = enabled
+    
+    if enabled then
+        _F.AntiStunConnection = RunService.Heartbeat:Connect(function()
+            if not _F.AntiStunEnabled then return end
+            
+            local character = LocalPlayer.Character
+            if character then
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    if humanoid.PlatformStand then
+                        humanoid.PlatformStand = false
+                    end
+                    if humanoid.Sit then
+                        humanoid.Sit = false
+                    end
+                end
+            end
+        end)
+        print("AntiStun: ENABLED")
+    else
+        if _F.AntiStunConnection then
+            _F.AntiStunConnection:Disconnect()
+        end
+        print("AntiStun: DISABLED")
+    end
+end
+
+-- AntiGrab
+_F.ToggleAntiGrab = function(enabled)
+    _F.AntiGrabEnabled = enabled
+    
+    if enabled then
+        _F.AntiGrabConnection = RunService.Heartbeat:Connect(function()
+            if not _F.AntiGrabEnabled then return end
+            
+            local character = LocalPlayer.Character
+            if character then
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    if humanoid.PlatformStand then
+                        humanoid.PlatformStand = false
+                    end
+                end
+            end
+        end)
+        print("AntiGrab: ENABLED")
+    else
+        if _F.AntiGrabConnection then
+            _F.AntiGrabConnection:Disconnect()
+        end
+        print("AntiGrab: DISABLED")
+    end
+end
+
+-- Max Escape Chance
+_F.ToggleMaxEscapeChance = function(enabled)
+    _F.MaxEscapeChanceEnabled = enabled
+    
+    if enabled then
+        print("100% Escape Chance: ENABLED")
+    else
+        print("100% Escape Chance: DISABLED")
+    end
+end
+
+-- Grab Killer
+_F.ToggleGrabKiller = function(enabled)
+    _F.GrabKillerEnabled = enabled
+    
+    if enabled then
+        print("Grab Killer: ENABLED")
+    else
+        print("Grab Killer: DISABLED")
+    end
+end
+
+-- Rapid Fire
+_F.ToggleRapidFire = function(enabled)
+    _F.RapidFireEnabled = enabled
+    
+    if enabled then
+        print("Rapid Fire: ENABLED")
+    else
+        print("Rapid Fire: DISABLED")
+    end
+end
+
+-- Disable Twist Animations
+_F.ToggleTwistAnimations = function(enabled)
+    _F.DisableTwistAnimationsEnabled = enabled
+    
+    if enabled then
+        print("Disable Twist Animations: ENABLED")
+    else
+        print("Disable Twist Animations: DISABLED")
+    end
+end
+
+-- No Fog
+_F.ToggleNoFog = function(enabled)
+    _F.NoFogEnabled = enabled
+    
+    if enabled then
+        Lighting.FogEnd = 1000000
+        print("No Fog: ENABLED")
+    else
+        Lighting.FogEnd = 1000
+        print("No Fog: DISABLED")
+    end
+end
+
+-- Time
+_F.ToggleTime = function(enabled)
+    _F.TimeEnabled = enabled
+    
+    if enabled then
+        Lighting.ClockTime = _F.TimeValue
+        print("Custom Time: ENABLED (" .. _F.TimeValue .. ")")
+    else
+        print("Custom Time: DISABLED")
+    end
+end
+
+_F.UpdateTimeValue = function(value)
+    _F.TimeValue = value
+    if _F.TimeEnabled then
+        Lighting.ClockTime = value
+    end
+    print("Time Value: " .. value)
+end
+
+-- Map Color
+_F.ToggleMapColor = function(enabled)
+    _F.MapColorEnabled = enabled
+    
+    if enabled then
+        Lighting.Ambient = _F.MapColor
+        Lighting.OutdoorAmbient = _F.MapColor
+        print("Map Color: ENABLED")
+    else
+        Lighting.Ambient = Color3.new(0.5, 0.5, 0.5)
+        Lighting.OutdoorAmbient = Color3.new(0.5, 0.5, 0.5)
+        print("Map Color: DISABLED")
+    end
+end
+
+-- Aimbot
+_F.ToggleAimbot = function(enabled)
+    _F.AimbotEnabled = enabled
+    print("Aimbot: " .. (enabled and "ENABLED" or "DISABLED"))
+end
+
+_F.UpdateAimbotFOV = function(value)
+    _F.AimbotFOV = value
+    print("Aimbot FOV: " .. value)
+end
+
+_F.UpdateAimbotSmoothness = function(value)
+    _F.AimbotSmoothness = value
+    print("Aimbot Smoothness: " .. value)
+end
+
+-- Triggerbot
+_F.ToggleTriggerbot = function(enabled)
+    _F.TriggerbotEnabled = enabled
+    print("Triggerbot: " .. (enabled and "ENABLED" or "DISABLED"))
+end
+
+-- Silent Aim
+_F.ToggleSilentAim = function(enabled)
+    _F.SilentAimEnabled = enabled
+    print("Silent Aim: " .. (enabled and "ENABLED" or "DISABLED"))
+end
+
+-- Third Person
+_F.ToggleThirdPerson = function(enabled)
+    _F.ThirdPersonEnabled = enabled
+    
+    if enabled then
+        Workspace.CurrentCamera.CameraType = Enum.CameraType.Scriptable
+        print("Third Person: ENABLED")
+    else
+        Workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+        print("Third Person: DISABLED")
+    end
+end
+
+-- Rotate Person
+_F.ToggleRotatePerson = function(enabled)
+    _F.RotatePersonEnabled = enabled
+    
+    if enabled then
+        _F.RotateConnection = RunService.Heartbeat:Connect(function()
+            if not _F.RotatePersonEnabled then return end
+            
+            local character = LocalPlayer.Character
+            if character then
+                local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                if humanoidRootPart then
+                    local currentCFrame = humanoidRootPart.CFrame
+                    local rotation = CFrame.Angles(0, math.rad(_F.RotateSpeed) * 0.1, 0)
+                    humanoidRootPart.CFrame = currentCFrame * rotation
+                end
+            end
+        end)
+        print("Rotate Person: ENABLED")
+    else
+        if _F.RotateConnection then
+            _F.RotateConnection:Disconnect()
+        end
+        print("Rotate Person: DISABLED")
+    end
+end
+
+_F.UpdateRotateSpeed = function(value)
+    _F.RotateSpeed = value
+    print("Rotate Speed: " .. value)
+end
+
+-- Teleport to Player
+_F.TeleportToPlayer = function(player)
+    if player == LocalPlayer then return end
+    
+    local character = LocalPlayer.Character
+    local targetCharacter = player.Character
+    
+    if character and targetCharacter then
+        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+        local targetRootPart = targetCharacter:FindFirstChild("HumanoidRootPart")
+        
+        if humanoidRootPart and targetRootPart then
+            humanoidRootPart.CFrame = targetRootPart.CFrame
+            print("Teleported to: " .. player.Name)
+        end
+    end
+end
 
 -- СОЗДАНИЕ ЭЛЕМЕНТОВ МЕНЮ
 
@@ -1050,8 +1542,41 @@ _F.CreateHSVColorPicker("Pallet Color", _F.PalletColor, function(color)
     print("Pallet Color updated")
 end, _F.ESPColorsFrame)
 
--- [ОСТАЛЬНЫЕ ЭЛЕМЕНТЫ МЕНЮ ОСТАЮТСЯ ТАКИМИ ЖЕ]
--- GAME FEATURES, COMBAT, VISUAL SETTINGS
+-- GAME FEATURES
+_F.CreateToggle("Walk Speed", false, _F.ToggleWalkSpeed, _F.GameFeaturesFrame)
+_F.CreateSlider("Walk Speed", 16, 100, 16, _F.UpdateWalkSpeedValue, _F.GameFeaturesFrame)
+_F.CreateToggle("Jump Power", false, _F.ToggleJumpPower, _F.GameFeaturesFrame)
+_F.CreateSlider("Jump Power", 50, 200, 50, _F.UpdateJumpPowerValue, _F.GameFeaturesFrame)
+_F.CreateToggle("Fly", false, _F.ToggleFly, _F.GameFeaturesFrame)
+_F.CreateSlider("Fly Speed", 10, 100, 50, function(value)
+    _F.FlySpeedValue = value
+    print("Fly Speed: " .. value)
+end, _F.GameFeaturesFrame)
+_F.CreateToggle("Noclip", false, _F.ToggleNoclip, _F.GameFeaturesFrame)
+_F.CreateToggle("God Mode", false, _F.ToggleGodMode, _F.GameFeaturesFrame)
+_F.CreateToggle("Invisible", false, _F.ToggleInvisible, _F.GameFeaturesFrame)
+_F.CreateToggle("AntiStun", false, _F.ToggleAntiStun, _F.GameFeaturesFrame)
+_F.CreateToggle("AntiGrab", false, _F.ToggleAntiGrab, _F.GameFeaturesFrame)
+_F.CreateToggle("100% Escape Chance", false, _F.ToggleMaxEscapeChance, _F.GameFeaturesFrame)
+_F.CreateToggle("Grab Killer", false, _F.ToggleGrabKiller, _F.GameFeaturesFrame)
+_F.CreateToggle("Rapid Fire", false, _F.ToggleRapidFire, _F.GameFeaturesFrame)
+_F.CreateToggle("Disable Twist Animations", false, _F.ToggleTwistAnimations, _F.GameFeaturesFrame)
+_F.CreateToggle("Third Person", false, _F.ToggleThirdPerson, _F.GameFeaturesFrame)
+_F.CreateToggle("Rotate Person", false, _F.ToggleRotatePerson, _F.GameFeaturesFrame)
+_F.CreateSlider("Rotate Speed", 0, 500, 100, _F.UpdateRotateSpeed, _F.GameFeaturesFrame)
+
+-- COMBAT
+_F.CreateToggle("Aimbot", false, _F.ToggleAimbot, _F.CombatFrame)
+_F.CreateSlider("Aimbot FOV", 1, 200, 50, _F.UpdateAimbotFOV, _F.CombatFrame)
+_F.CreateSlider("Aimbot Smoothness", 1, 20, 10, _F.UpdateAimbotSmoothness, _F.CombatFrame)
+_F.CreateToggle("Triggerbot", false, _F.ToggleTriggerbot, _F.CombatFrame)
+_F.CreateToggle("Silent Aim", false, _F.ToggleSilentAim, _F.CombatFrame)
+
+-- VISUAL SETTINGS
+_F.CreateToggle("No Fog", false, _F.ToggleNoFog, _F.VisualSettingsFrame)
+_F.CreateToggle("Custom Time", false, _F.ToggleTime, _F.VisualSettingsFrame)
+_F.CreateSlider("Time", 0, 24, 12, _F.UpdateTimeValue, _F.VisualSettingsFrame)
+_F.CreateToggle("Map Color", false, _F.ToggleMapColor, _F.VisualSettingsFrame)
 
 -- Кнопка закрытия меню
 _F.CreateCloseButton = function()
@@ -1099,10 +1624,106 @@ _F.ToggleMenu = function()
     end
 end
 
--- [ОСТАЛЬНЫЕ ФУНКЦИИ УПРАВЛЕНИЯ ОСТАЮТСЯ ТАКИМИ ЖЕ]
--- Управление для мобильных устройств, перетаскивание меню, уведомление
+-- Управление для мобильных устройств
+local lastTapTime = 0
+UserInputService.TouchTap:Connect(function(touchPositions, processed)
+    if processed then return end
+    
+    local currentTime = tick()
+    
+    if currentTime - lastTapTime < 0.5 then
+        _F.ToggleMenu()
+    end
+    
+    lastTapTime = currentTime
+end)
 
-print("Violence District Mobile Menu with HSV Color Pickers loaded!")
+-- Управление для ПК
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == Enum.KeyCode.RightShift then
+        _F.ToggleMenu()
+    end
+end)
+
+-- Перетаскивание меню
+_F.dragging = false
+_F.dragInput = nil
+_F.dragStart = nil
+_F.startPos = nil
+
+_F.TitleFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        _F.dragging = true
+        _F.dragStart = input.Position
+        _F.startPos = _F.MainFrame.Position
+    end
+end)
+
+_F.TitleFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        _F.dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == _F.dragInput and _F.dragging then
+        local delta = input.Position - _F.dragStart
+        _F.MainFrame.Position = UDim2.new(
+            _F.startPos.X.Scale, 
+            _F.startPos.X.Offset + delta.X,
+            _F.startPos.Y.Scale, 
+            _F.startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        _F.dragging = false
+    end
+end)
+
+-- Уведомление
+_F.CreateNotification = function()
+    local Notification = Instance.new("TextLabel")
+    Notification.Name = "MobileHint"
+    Notification.Size = UDim2.new(0, 250, 0, 40)
+    Notification.Position = UDim2.new(0.5, -125, 0.1, 0)
+    Notification.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    Notification.BackgroundTransparency = 0.5
+    Notification.Text = "Double Tap or RightShift to Open Menu"
+    Notification.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Notification.TextSize = 14
+    Notification.Font = Enum.Font.GothamBold
+    Notification.TextStrokeTransparency = 0
+    Notification.ZIndex = 1000
+    Notification.Parent = _F.ScreenGui
+    
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 8)
+    Corner.Parent = Notification
+    
+    delay(5, function()
+        local tweenOut = TweenService:Create(Notification, TweenInfo.new(0.7, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
+            Position = UDim2.new(0.5, -125, 0, -50)
+        })
+        tweenOut:Play()
+        
+        tweenOut.Completed:Connect(function()
+            Notification:Destroy()
+        end)
+    end)
+end
+
+-- Автоматическое скрытие меню при старте
+_F.MainFrame.Position = UDim2.new(0.5, -_F.MOBILE_SETTINGS.MENU_WIDTH/2, 1, 50)
+
+-- Запуск
+delay(1, _F.CreateNotification)
+
+print("Violence District Mobile Menu COMPLETE VERSION loaded!")
 print("Double tap or press RightShift to open menu")
 print("Drag the title to move the menu")
 
